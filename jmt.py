@@ -141,8 +141,6 @@ class JMT:
         with tf.Session(graph=graph) as sess:
             saver = tf.train.Saver()
             sess.run(tf.global_variables_initializer())
-    #         new_saver = tf.train.import_meta_graph('model.ckpt.meta')
-    #         new_saver.restore(sess, tf.train.latest_checkpoint('./'))
             print('***Training POS layer***')
             for i in range(500):
                 a, b, c = get_batch_pos(self, self.batch_size)
@@ -150,7 +148,7 @@ class JMT:
                                 {self.inp: a, self.t_p: b})
                 if i % 50 == 0:
                     print(l)
-                    saver.save(sess, 'model.ckpt')
+                    saver.save(sess, 'saves.model.ckpt')
             print('***Training chunk layer***')
             for i in range(500):
                 a, b, c = get_batch_pos(self, self.batch_size)
@@ -158,7 +156,7 @@ class JMT:
                                     self.inp: a, self.t_p: b, self.t_c: c})
                 if i % 50 == 0:
                     print(l, l1)
-                    saver.save(sess, 'model.ckpt')
+                    saver.save(sess, 'saves/model.ckpt')
             print('***Training semantic relatedness***')
             for i in range(500):
                 a, b, c, _ = get_batch_sent(self, self.batch_size)
@@ -166,7 +164,7 @@ class JMT:
                                                                    self.inp1: b, self.t_rel: c})
                 if i % 50 == 0:
                     print(l2)
-                    saver.save(sess, 'model.ckpt')
+                    saver.save(sess, 'saves/model.ckpt')
             print('***Training semantic entailment***')
             for i in range(500):
                 a, b, _, c = get_batch_sent(self, self.batch_size)
@@ -174,4 +172,4 @@ class JMT:
                                                                    self.inp1: b, self.t_ent: c})
                 if i % 50 == 0:
                     print(l3)
-                    saver.save(sess, 'model.ckpt')
+                    saver.save(sess, 'saves/model.ckpt')
