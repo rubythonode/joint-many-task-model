@@ -92,4 +92,4 @@ for i in range(len(i2w)):
 
 data = {'i2w': i2w, 'w2i': w2i, 'word_level': word_level,
         'vec': vec, 'sent_level': sent_level}
-np.savez('data.npz', data=data)
+np.savez('data/data.npz', data=data)

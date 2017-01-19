@@ -15,7 +15,7 @@ class JMT:
         self.lr = lr
 
     def load_data(self):
-        data = np.load('data.npz')['data'].item()
+        data = np.load('data/data.npz')['data'].item()
         self.sent = data['word_level']['sent'].values
         self.pos = data['word_level']['pos']
         self.i2p = data['word_level']['i2p']
