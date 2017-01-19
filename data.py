@@ -7,6 +7,9 @@ from collections import namedtuple
 import json
 
 
+def split(x):
+    return x.lower().split()
+
 word_level = dict()
 sent_level = dict()
 train_chunk = open('data/train.txt').readlines()
@@ -61,8 +64,9 @@ model = Word2Vec(sent, min_count=1, size=300, sg=1, iter=25, negative=128, worke
                  window=2, batch_words=500)
 
 for i, _ in enumerate(word_level['sent']):
-for j, _ in enumerate(word_level['sent'][i]):
-    word_level['sent'][i][j] = w2i[word_level['sent'][i][j]]
+    for j, _ in enumerate(word_level['sent'][i]):
+        word_level['sent'][i][j] = w2i[word_level['sent'][i][j]]
+
 
 sent_level['sent1'], sent_level['sent2'] = sick.sentence_A.apply(
     split), sick.sentence_B.apply(split)
