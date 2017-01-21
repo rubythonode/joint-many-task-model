@@ -11,7 +11,7 @@ pre-trained for word embeddings.
 
 ![](images/model.png)
 
-## Data: 
+## Data:
 
 * Conll2000 (http://www.cnts.ua.ac.be/conll2000/chunking/)
 * SICK data (http://clic.cimec.unitn.it/composes/sick.html)
@@ -25,7 +25,9 @@ pre-trained for word embeddings.
 
 ## Usage:
 
-`python run.py` Check run.py for more details.
+data.py - Preprocesses data for the model
+
+run.py  - Runs the main model.
 
 ## Note:
 
@@ -38,4 +40,3 @@ A Joint Many-Task Model: Growing a Neural Network for Multiple NLP Tasks
 Kazuma Hashimoto, Caiming Xiong, Yoshimasa Tsuruoka, Richard Socher
 
 https://arxiv.org/abs/1611.01587
-
