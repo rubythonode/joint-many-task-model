@@ -32,7 +32,7 @@ run.py  - Runs the main model.
 ## Note:
 
 The original paper contains one more task which is dependency parsing. Currently, that is not incorporated in the model due to
-non-availability of good public data.
+non-availability of good public data. Also need to add successive regularization.
 
 ## Citations:
 
