@@ -5,7 +5,8 @@ paper. It demonstrates how a neural model can be trained from low-level to highe
 correspond to word-level tasks and the higher layers correspond to tasks which are performed at sentence level.
 The authors also show how to retain the information at lower layers while training the higher layers by successive regularization.
 It is also clearly shown that transfer learning is possible where different datasets are exploited simultaneously after jointly
-pre-trained for word embeddings.
+pre-trained for word embeddings. Catastrophic inference is a vrey crucial thing to deal with in this mode.
+It is basically the inference in other layer's learned parameters while training a particular layer. As an example, you want to retain information about POS while training for, say, chunking later!
 
 ## Model Architecture:
 
