@@ -152,10 +152,10 @@ class JMT:
             print('***Training chunk layer***')
             for i in range(500):
                 a, b, c = get_batch_pos(self, self.batch_size)
-                _, l1, l = sess.run([self.optimize_op1, self.loss1, self.loss], {
+                _, l1 = sess.run([self.optimize_op1, self.loss1], {
                                     self.inp: a, self.t_p: b, self.t_c: c})
                 if i % 50 == 0:
-                    print(l, l1)
+                    print(l1)
                     saver.save(sess, 'saves/model.ckpt')
             print('***Training semantic relatedness***')
             for i in range(500):
