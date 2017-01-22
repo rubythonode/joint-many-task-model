@@ -25,8 +25,12 @@ def activate(outputs, weight_shape, bias_shape, activation=tf.nn.softmax):
         "weights", shape=weight_shape, initializer=tf.random_normal_initializer())
     biases = tf.get_variable("biases", shape=bias_shape,
                              initializer=tf.constant_initializer(0.0))
-    result = activation(
-        tf.einsum(dim_str[outputs.get_shape().ndims], outputs, weights) + biases)
+    if outputs.get_shape().ndims == 2:
+        result = activation(tf.matmul(outputs, weights) + biases)
+    else:
+        result = activation(tf.reshape(tf.matmul(tf.reshape(outputs, [-1, weight_shape[
+            0]]), weights), [-1, outputs.get_shape().as_list()[1], weight_shape[1]]) + biases)
+
     return result
 
 
