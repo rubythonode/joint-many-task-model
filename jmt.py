@@ -26,6 +26,7 @@ class JMT:
         self.i2e = data['sent_level']['i2e']
         self.rel = data['sent_level']['rel']
         self.ent = data['sent_level']['entailment']
+        self.w2i = data['w2i']
 
         self.vec = np.array(data['vec'] + [[0] * 300])
         self.max_length = max([len(i) for i in self.sent])
@@ -43,7 +44,7 @@ class JMT:
                                                              sequence_length=length(embeds), dtype=tf.float32)
                 concat_outputs = tf.concat(2, outputs)
                 y_pos = activate(concat_outputs, [
-                                 self.dim * 2, len(self.i2p)], [len(self.i2p)])
+                    self.dim * 2, len(self.i2p)], [len(self.i2p)])
                 t_pos_sparse = tf.one_hot(
                     indices=t_pos, depth=len(self.i2p), axis=-1)
                 loss = cost(y_pos, t_pos_sparse)
@@ -98,29 +99,29 @@ class JMT:
                     concat_outputs4 = tf.concat(2, outputs3)
                     s1 = tf.reduce_max(concat_outputs4, reduction_indices=1)
 
-            return s, s1, optimize_op, optimize_op1, loss, loss1
+            return s, s1, optimize_op, optimize_op1, loss, loss1, y_pos, y_chunk
 
         with tf.variable_scope('sentence') as scope:
             self.inp = tf.placeholder(
-                shape=[self.batch_size, self.max_length], dtype=tf.int32, name='input')
+                shape=[None, self.max_length], dtype=tf.int32, name='input')
             self.t_p = tf.placeholder(
-                shape=[self.batch_size, self.max_length], dtype=tf.int32, name='t_pos')
+                shape=[None, self.max_length], dtype=tf.int32, name='t_pos')
             self.t_c = tf.placeholder(
-                shape=[self.batch_size, self.max_length], dtype=tf.int32, name='t_chunk')
-            s11, s12, self.optimize_op, self.optimize_op1, self.loss, self.loss1 = sentence_op(
+                shape=[None, self.max_length], dtype=tf.int32, name='t_chunk')
+            s11, s12, self.optimize_op, self.optimize_op1, self.loss, self.loss1, self.y_pos, self.y_chunk = sentence_op(
                 self.inp, self.t_p, self.t_c)
             scope.reuse_variables()
             self.inp1 = tf.placeholder(
-                shape=[self.batch_size, self.max_length], dtype=tf.int32, name='input')
-            s21, s22, _, _, _, _ = sentence_op(self.inp1, self.t_p, self.t_c)
+                shape=[None, self.max_length], dtype=tf.int32, name='input1')
+            s21, s22 = sentence_op(self.inp1, self.t_p, self.t_c)[:2]
 
             d = tf.concat(1, [tf.abs(tf.sub(s11, s21)), tf.mul(s11, s21)])
             d1 = tf.concat(1, [tf.sub(s12, s22), tf.mul(s12, s22)])
         with tf.variable_scope('relation'):
-            y_rel = tf.squeeze(
+            self.y_rel = tf.squeeze(
                 activate(d, [self.dim * 4, 1], [1], activation=tf.nn.relu))
             self.t_rel = tf.placeholder(shape=[None], dtype=tf.float32)
-            self.loss2 = rmse_loss(y_rel, self.t_rel)
+            self.loss2 = rmse_loss(self.y_rel, self.t_rel)
             self.loss2 += tf.reduce_sum([self.reg_lambda * tf.nn.l2_loss(x)
                                          for x in tf.trainable_variables()])
             self.optimize_op2 = tf.train.AdagradOptimizer(
@@ -129,36 +130,91 @@ class JMT:
         with tf.variable_scope('entailment'):
             self.t_ent = tf.placeholder(shape=[None], dtype=tf.int32)
             t_ent_sparse = tf.one_hot(indices=self.t_ent, depth=3, axis=-1)
-            y_ent = activate(d1, [self.dim * 4, 3], [3])
-            self.loss3 = - tf.reduce_mean(t_ent_sparse * tf.log(y_ent))
+            self.y_ent = activate(d1, [self.dim * 4, 3], [3])
+            self.loss3 = - tf.reduce_mean(t_ent_sparse * tf.log(self.y_ent))
             self.loss3 += tf.reduce_sum([self.reg_lambda * tf.nn.l2_loss(x)
                                          for x in tf.trainable_variables()])
             self.optimize_op3 = tf.train.AdagradOptimizer(
                 self.lr).minimize(self.loss3)
         print('***Model built***')
 
-    def train_model(self, graph):
+    def get_predictions(self, graph, task_desc):
+        resp = dict()
+        saver = tf.train.Saver()
         with tf.Session(graph=graph) as sess:
-            saver = tf.train.Saver()
-            sess.run(tf.global_variables_initializer())
+            saver = tf.train.import_meta_graph('saves/model.ckpt.meta')
+            saver.restore(sess, tf.train.latest_checkpoint('./saves'))
+
+            if 'pos' in task_desc:
+                inp = task_desc['pos'].lower().split()
+                inputs = [[self.w2i[i] for i in inp] +
+                          [self.vec.shape[0] - 1] * (self.max_length - len(inp))]
+                preds = sess.run(self.y_pos,
+                                 {self.inp: inputs})[0]
+                preds = np.argmax(preds, axis=-1)[:len(inp)]
+                preds = [self.i2p[i] for i in preds]
+                resp['pos'] = preds
+
+            if 'chunk' in task_desc:
+                inp = task_desc['chunk'].lower().split()
+                inputs = [[self.w2i[i] for i in inp] +
+                          [self.vec.shape[0] - 1] * (self.max_length - len(inp))]
+                preds = sess.run(self.y_chunk, {self.inp: inputs})[0]
+                preds = np.argmax(preds, axis=-1)[:len(inp)]
+                preds = [self.i2c[i] for i in preds]
+                resp['chunk'] = preds
+
+            if 'relatedness' in task_desc:
+                inp1 = task_desc['relatedness'][0].lower().split()
+                inputs1 = [[self.w2i[i] for i in inp1] +
+                           [self.vec.shape[0] - 1] * (self.max_length - len(inp1))]
+                inp2 = task_desc['relatedness'][1].lower().split()
+                inputs2 = [[self.w2i[i] for i in inp2] +
+                           [self.vec.shape[0] - 1] * (self.max_length - len(inp2))]
+                preds = sess.run(
+                    self.y_rel, {self.inp: inputs1, self.inp1: inputs2})
+                resp['relatedness'] = preds
+
+            if 'entailment' in task_desc:
+                inp1 = task_desc['entailment'][0].lower().split()
+                inputs1 = [[self.w2i[i] for i in inp1] +
+                           [self.vec.shape[0] - 1] * (self.max_length - len(inp1))]
+                inp2 = task_desc['entailment'][1].lower().split()
+                inputs2 = [[self.w2i[i] for i in inp2] +
+                           [self.vec.shape[0] - 1] * (self.max_length - len(inp2))]
+                preds = sess.run(
+                    self.y_ent, {self.inp: inputs1, self.inp1: inputs2})[0]
+                resp['entailment'] = self.i2e[np.argmax(preds)]
+
+        return resp
+
+    def train_model(self, graph, iterations=500, resume=False):
+        saver = tf.train.Saver()
+        with tf.Session(graph=graph) as sess:
+            if resume:
+                saver = tf.train.import_meta_graph('saves/model.ckpt.meta')
+                saver.restore(sess, tf.train.latest_checkpoint('./saves'))
+                print('training resumed')
+            else:
+                sess.run(tf.global_variables_initializer())
             print('***Training POS layer***')
-            for i in range(500):
+            for i in range(iterations):
                 a, b, c = get_batch_pos(self, self.batch_size)
                 _, l = sess.run([self.optimize_op, self.loss],
                                 {self.inp: a, self.t_p: b})
                 if i % 50 == 0:
                     print(l)
-                    saver.save(sess, 'saves.model.ckpt')
+                    saver.save(sess, 'saves/model.ckpt')
             print('***Training chunk layer***')
-            for i in range(500):
+            for i in range(iterations):
                 a, b, c = get_batch_pos(self, self.batch_size)
                 _, l1 = sess.run([self.optimize_op1, self.loss1], {
-                                    self.inp: a, self.t_p: b, self.t_c: c})
+                    self.inp: a, self.t_p: b, self.t_c: c})
                 if i % 50 == 0:
                     print(l1)
                     saver.save(sess, 'saves/model.ckpt')
             print('***Training semantic relatedness***')
-            for i in range(500):
+            for i in range(iterations):
                 a, b, c, _ = get_batch_sent(self, self.batch_size)
                 _, l2 = sess.run([self.optimize_op2, self.loss2], {self.inp: a,
                                                                    self.inp1: b, self.t_rel: c})
@@ -166,7 +222,7 @@ class JMT:
                     print(l2)
                     saver.save(sess, 'saves/model.ckpt')
             print('***Training semantic entailment***')
-            for i in range(500):
+            for i in range(iterations):
                 a, b, _, c = get_batch_sent(self, self.batch_size)
                 _, l3 = sess.run([self.optimize_op3, self.loss3], {self.inp: a,
                                                                    self.inp1: b, self.t_ent: c})
