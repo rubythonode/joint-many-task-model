@@ -30,6 +30,23 @@ data.py - Preprocesses data for the model
 
 run.py  - Runs the main model.
 
+# Sample input:
+
+```python
+      task_desc = {
+        'pos': 'this has increased the risk',
+        'chunk': 'this has increased the risk',
+        'relatedness': ['two dogs are wrestling and hugging', 'there is no dog wrestling and hugging'],
+        'entailment': ['Two dogs are wrestling and hugging', 'There is no dog wrestling and hugging']
+}
+
+```
+
+# Sample Output:
+
+![](images/result.png)
+
+
 ## Note:
 
 The original paper contains one more task which is dependency parsing. Currently, that is not incorporated in the model due to
