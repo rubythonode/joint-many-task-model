@@ -8,10 +8,9 @@ LSTMStateTuple = tf.nn.rnn_cell.LSTMStateTuple
 
 class JMT:
 
-    def __init__(self, dim, reg_lambda, batch_size, lr=0.01):
+    def __init__(self, dim, reg_lambda, lr=0.01):
         self.dim = dim
         self.reg_lambda = reg_lambda
-        self.batch_size = batch_size
         self.lr = lr
 
     def load_data(self):
@@ -188,8 +187,9 @@ class JMT:
 
         return resp
 
-    def train_model(self, graph, iterations=500, resume=False):
+    def train_model(self, graph, train_desc, resume=False):
         saver = tf.train.Saver()
+        batch_size = train_desc['batch_size']
         with tf.Session(graph=graph) as sess:
             if resume:
                 saver = tf.train.import_meta_graph('saves/model.ckpt.meta')
@@ -197,35 +197,39 @@ class JMT:
                 print('training resumed')
             else:
                 sess.run(tf.global_variables_initializer())
-            print('***Training POS layer***')
-            for i in range(iterations):
-                a, b, c = get_batch_pos(self, self.batch_size)
-                _, l = sess.run([self.optimize_op, self.loss],
-                                {self.inp: a, self.t_p: b})
-                if i % 50 == 0:
-                    print(l)
-                    saver.save(sess, 'saves/model.ckpt')
-            print('***Training chunk layer***')
-            for i in range(iterations):
-                a, b, c = get_batch_pos(self, self.batch_size)
-                _, l1 = sess.run([self.optimize_op1, self.loss1], {
-                    self.inp: a, self.t_p: b, self.t_c: c})
-                if i % 50 == 0:
-                    print(l1)
-                    saver.save(sess, 'saves/model.ckpt')
-            print('***Training semantic relatedness***')
-            for i in range(iterations):
-                a, b, c, _ = get_batch_sent(self, self.batch_size)
-                _, l2 = sess.run([self.optimize_op2, self.loss2], {self.inp: a,
-                                                                   self.inp1: b, self.t_rel: c})
-                if i % 50 == 0:
-                    print(l2)
-                    saver.save(sess, 'saves/model.ckpt')
-            print('***Training semantic entailment***')
-            for i in range(iterations):
-                a, b, _, c = get_batch_sent(self, self.batch_size)
-                _, l3 = sess.run([self.optimize_op3, self.loss3], {self.inp: a,
-                                                                   self.inp1: b, self.t_ent: c})
-                if i % 50 == 0:
-                    print(l3)
-                    saver.save(sess, 'saves/model.ckpt')
+            if 'pos' in train_desc:
+                print('***Training POS layer***')
+                for i in range(train_desc['pos']):
+                    a, b, c = get_batch_pos(self, batch_size)
+                    _, l = sess.run([self.optimize_op, self.loss],
+                                    {self.inp: a, self.t_p: b})
+                    if i % 50 == 0:
+                        print(l)
+                        saver.save(sess, 'saves/model.ckpt')
+            if 'chunk' in train_desc:
+                print('***Training chunk layer***')
+                for i in range(train_desc['chunk']):
+                    a, b, c = get_batch_pos(self, batch_size)
+                    _, l1 = sess.run([self.optimize_op1, self.loss1], {
+                        self.inp: a, self.t_p: b, self.t_c: c})
+                    if i % 50 == 0:
+                        print(l1)
+                        saver.save(sess, 'saves/model.ckpt')
+            if 'relatedness' in train_desc:
+                print('***Training semantic relatedness***')
+                for i in range(train_desc['relatedness']):
+                    a, b, c, _ = get_batch_sent(self, batch_size)
+                    _, l2 = sess.run([self.optimize_op2, self.loss2], {self.inp: a,
+                                                                       self.inp1: b, self.t_rel: c})
+                    if i % 50 == 0:
+                        print(l2)
+                        saver.save(sess, 'saves/model.ckpt')
+            if 'entailment' in train_desc:
+                print('***Training semantic entailment***')
+                for i in range(train_desc['entailment']):
+                    a, b, _, c = get_batch_sent(self, batch_size)
+                    _, l3 = sess.run([self.optimize_op3, self.loss3], {self.inp: a,
+                                                                       self.inp1: b, self.t_ent: c})
+                    if i % 50 == 0:
+                        print(l3)
+                        saver.save(sess, 'saves/model.ckpt')
